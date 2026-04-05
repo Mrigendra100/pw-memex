@@ -6,11 +6,20 @@ import {
   ScreenshotRecord
 } from './memorySchema';
 
-export function writeMemory(memory: TestMemory, outputDir: string): string {
-  fs.mkdirSync(outputDir, { recursive: true });
+export function writeMemory(memory: TestMemory, outputDir: string, specPath?: string): string {
+  let filePath: string;
 
-  const slug = slugify(memory.meta.test);
-  const filePath = path.join(outputDir, `${slug}.memory.md`);
+  if (specPath) {
+    const specSlug = extractSpecSlug(specPath);
+    const testSlug = slugify(memory.meta.test);
+    const dir = path.join(outputDir, specSlug);
+    fs.mkdirSync(dir, { recursive: true });
+    filePath = path.join(dir, `${testSlug}.md`);
+  } else {
+    fs.mkdirSync(outputDir, { recursive: true });
+    const slug = slugify(memory.meta.test);
+    filePath = path.join(outputDir, `${slug}.memory.md`);
+  }
 
   fs.writeFileSync(filePath, serializeToMarkdown(memory), 'utf8');
   return filePath;
@@ -29,19 +38,26 @@ export function readMemory(filePath: string): TestMemory | null {
   }
 }
 
-export function findMemoryFile(testTitle: string, memoryDir: string): string | null {
+export function findMemoryFile(testTitle: string, memoryDir: string, specPath?: string): string | null {
   if (!fs.existsSync(memoryDir)) return null;
 
-  const slug = slugify(testTitle);
-  const direct = path.join(memoryDir, `${slug}.memory.md`);
-  if (fs.existsSync(direct)) return direct;
+  // 1. Hierarchical path (new structure)
+  if (specPath) {
+    const specSlug = extractSpecSlug(specPath);
+    const testSlug = slugify(testTitle);
+    const nested = path.join(memoryDir, specSlug, `${testSlug}.md`);
+    if (fs.existsSync(nested)) return nested;
+  }
 
-  // Fallback: scan all .memory.md files for matching test title
-  const files = fs.readdirSync(memoryDir).filter(f => f.endsWith('.memory.md'));
-  for (const file of files) {
-    const fullPath = path.join(memoryDir, file);
-    const mem = readMemory(fullPath);
-    if (mem?.meta.test === testTitle) return fullPath;
+  // 2. Flat path (legacy structure — migration grace period)
+  const slug = slugify(testTitle);
+  const flat = path.join(memoryDir, `${slug}.memory.md`);
+  if (fs.existsSync(flat)) return flat;
+
+  // 3. Recursive scan matching meta.test field
+  for (const file of walkMemoryFiles(memoryDir)) {
+    const mem = readMemory(file);
+    if (mem?.meta.test === testTitle) return file;
   }
 
   return null;
@@ -49,10 +65,20 @@ export function findMemoryFile(testTitle: string, memoryDir: string): string | n
 
 export function listMemoryFiles(memoryDir: string): string[] {
   if (!fs.existsSync(memoryDir)) return [];
-  return fs
-    .readdirSync(memoryDir)
-    .filter(f => f.endsWith('.memory.md'))
-    .map(f => path.join(memoryDir, f));
+  return walkMemoryFiles(memoryDir);
+}
+
+function walkMemoryFiles(dir: string): string[] {
+  const results: string[] = [];
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      results.push(...walkMemoryFiles(fullPath));
+    } else if (entry.name.endsWith('.md') || entry.name.endsWith('.memory.md')) {
+      results.push(fullPath);
+    }
+  }
+  return results;
 }
 
 // ─── Serialisation ────────────────────────────────────────────────────────────
@@ -235,6 +261,11 @@ function parseScreenshots(content: string): ScreenshotRecord[] {
   }
 
   return records;
+}
+
+function extractSpecSlug(specPath: string): string {
+  const base = path.basename(specPath).replace(/\.spec\.(ts|js|mts|mjs|cts|cjs)$/, '');
+  return slugify(base);
 }
 
 function slugify(str: string): string {

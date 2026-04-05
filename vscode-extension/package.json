@@ -1,0 +1,47 @@
+{
+  "name": "pw-memex-vscode",
+  "displayName": "pw-memex",
+  "description": "Playwright Memory Extractor — learn baselines and classify failures from VS Code",
+  "version": "0.1.0",
+  "publisher": "Mrigendra Kumar",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Testing"],
+  "activationEvents": ["onLanguage:typescript"],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "pw-memex.learn",
+        "title": "pw-memex: Learn from trace"
+      },
+      {
+        "command": "pw-memex.compare",
+        "title": "pw-memex: Compare failure"
+      }
+    ],
+    "menus": {
+      "explorer/context": [
+        {
+          "command": "pw-memex.learn",
+          "when": "resourceFilename =~ /\\.spec\\.(ts|js)$/",
+          "group": "testing"
+        },
+        {
+          "command": "pw-memex.compare",
+          "when": "resourceFilename =~ /\\.spec\\.(ts|js)$/",
+          "group": "testing"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.3.0"
+  }
+}

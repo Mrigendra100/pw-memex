@@ -44,7 +44,7 @@ npm install pw-memex
 Or clone and build locally:
 
 ```bash
-git clone <repo>
+git clone https://github.com/Mrigendra100/pw-memex.git
 cd pw-memex
 npm install
 npm run build
@@ -94,13 +94,13 @@ export default config;
 
 ```bash
 # Learn: build a memory baseline from a passing trace
-pw-memex learn --trace test-results/my-test/trace.zip --name my-test
+pw-memex learn test-results/my-test/trace.zip --test "my test name" --output .pw-memory
 
-# Compare: classify a failure against the baseline
-pw-memex compare --trace test-results/my-test/trace.zip --name my-test
+# Compare: classify a failure against an existing baseline
+pw-memex compare test-results/my-test/trace.zip .pw-memory/my-test-name.memory.md --error "element not found"
 
-# Run both automatically after your test suite
-pw-memex run --config pw-memex.config.ts
+# List all saved baselines
+pw-memex list --dir .pw-memory
 ```
 
 ---

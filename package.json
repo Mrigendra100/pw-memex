@@ -21,6 +21,19 @@
     "traces",
     "self-healing"
   ],
+  "author": "Mrigendra Kumar",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Mrigendra100/pw-memex.git"
+  },
+  "homepage": "https://github.com/Mrigendra100/pw-memex#readme",
+  "bugs": {
+    "url": "https://github.com/Mrigendra100/pw-memex/issues"
+  },
+  "exports": {
+    ".": "./dist/index.js",
+    "./reporter": "./dist/reporter/playwrightReporter.js"
+  },
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.35.0",

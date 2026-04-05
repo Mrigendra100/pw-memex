@@ -5,7 +5,7 @@ import * as path from 'path';
 import * as dotenv from 'dotenv';
 import { parseTrace } from './parser/traceParser';
 import { buildMemory } from './memory/memoryBuilder';
-import { writeMemory, readMemory, findMemoryFile, listMemoryFiles } from './memory/memoryStore';
+import { writeMemory, readMemory, listMemoryFiles } from './memory/memoryStore';
 import { detectRegression } from './regression/detector';
 import { printReport, writeJsonReport } from './regression/reporter';
 
@@ -45,7 +45,7 @@ program
         opts.baseUrl,
       );
 
-      const outPath = writeMemory(memory, opts.output);
+      const outPath = writeMemory(memory, opts.output, opts.suite);
       console.log(`\n  Memory written: ${outPath}`);
       console.log(`  Selectors captured: ${memory.selectorAnchors.length}`);
       console.log(`  Network baselines:  ${memory.networkCalls.length}`);

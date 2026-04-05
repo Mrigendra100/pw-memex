@@ -1,0 +1,13 @@
+src/
+tests/
+docs/
+*.md
+!README.md
+*.config.ts
+.env
+.env.*
+tsconfig.json
+dist/**/*.map
+vscode-extension/
+.pw-memory/
+.github/
