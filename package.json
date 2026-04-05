@@ -1,0 +1,46 @@
+{
+  "name": "pw-memex",
+  "version": "0.1.0",
+  "description": "Turn Playwright traces into regression intelligence",
+  "main": "./dist/index.js",
+  "bin": {
+    "pw-memex": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "test": "playwright test tests/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "regression",
+    "AI",
+    "traces",
+    "self-healing"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.35.0",
+    "adm-zip": "^0.5.10",
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "dotenv": "^16.4.0",
+    "gray-matter": "^4.0.3",
+    "pixelmatch": "^5.3.0",
+    "pngjs": "^7.0.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.43.0",
+    "@types/adm-zip": "^0.5.5",
+    "@types/node": "^20.0.0",
+    "@types/pngjs": "^6.0.4",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
