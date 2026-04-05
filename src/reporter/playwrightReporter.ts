@@ -1,4 +1,4 @@
-import type { Reporter, TestCase, TestResult, Suite } from '@playwright/test/reporter';
+import type { Reporter, TestCase, TestResult, Suite, FullConfig } from '@playwright/test/reporter';
 import { MemexConfig } from '../memory/memorySchema';
 import { parseTrace } from '../parser/traceParser';
 import { buildMemory } from '../memory/memoryBuilder';
@@ -7,15 +7,22 @@ import { detectRegression } from '../regression/detector';
 import { printReport } from '../regression/reporter';
 
 export default class MemexReporter implements Reporter {
-  private config: Required<MemexConfig>;
+  private options: Partial<MemexConfig>;
+  private config!: Required<MemexConfig>;
 
   constructor(options: Partial<MemexConfig> = {}) {
+    this.options = options;
+  }
+
+  onBegin(config: FullConfig): void {
+    // Auto-detect baseUrl from playwright.config.ts if not explicitly provided
+    const playwrightBaseUrl = config.projects[0]?.use?.baseURL;
     this.config = {
-      baseUrl: options.baseUrl ?? 'http://localhost:3000',
-      outputDir: options.outputDir ?? '.pw-memory',
-      screenshotDiffThreshold: options.screenshotDiffThreshold ?? 0.1,
-      networkTimingMultiplier: options.networkTimingMultiplier ?? 3,
-      model: options.model ?? 'claude-sonnet-4-6',
+      baseUrl: this.options.baseUrl ?? playwrightBaseUrl ?? '',
+      outputDir: this.options.outputDir ?? '.pw-memory',
+      screenshotDiffThreshold: this.options.screenshotDiffThreshold ?? 0.1,
+      networkTimingMultiplier: this.options.networkTimingMultiplier ?? 3,
+      model: this.options.model ?? 'claude-sonnet-4-6',
     };
   }
 
@@ -78,7 +85,7 @@ export default class MemexReporter implements Reporter {
         printReport(detection, test.title);
       }
     } catch (err: any) {
-      console.error(`pw-memex: error processing "${test.title}": ${err.message}`);
+      console.error(`pw-memex: error processing "${test.title}":`, err);
     }
   }
 
