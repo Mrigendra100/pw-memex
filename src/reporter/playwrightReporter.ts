@@ -1,4 +1,4 @@
-import type { Reporter, TestCase, TestResult, Suite, FullConfig } from '@playwright/test/reporter';
+import type { Reporter, TestCase, TestResult, Suite, FullConfig, FullResult } from '@playwright/test/reporter';
 import { MemexConfig } from '../memory/memorySchema';
 import { parseTrace } from '../parser/traceParser';
 import { buildMemory } from '../memory/memoryBuilder';
@@ -9,6 +9,7 @@ import { printReport } from '../regression/reporter';
 export default class MemexReporter implements Reporter {
   private options: Partial<MemexConfig>;
   private config!: Required<MemexConfig>;
+  private _queue: Array<{ test: TestCase; result: TestResult }> = [];
 
   constructor(options: Partial<MemexConfig> = {}) {
     this.options = options;
@@ -26,27 +27,41 @@ export default class MemexReporter implements Reporter {
     };
   }
 
-  async onTestEnd(test: TestCase, result: TestResult): Promise<void> {
+  // onTestEnd returns void — Playwright does NOT await it.
+  // Only queue items here; all async work happens in onEnd.
+  onTestEnd(test: TestCase, result: TestResult): void {
+    if (result.status === 'skipped') return;
+
+    const traceAttachment = result.attachments.find(
+      a => a.name === 'trace' && a.path
+    );
+    if (!traceAttachment?.path) {
+      if (result.status === 'passed') {
+        console.log(
+          `pw-memex: trace not found for "${test.title}". ` +
+          `Set use: { trace: 'on' } in playwright.config to enable learning.`
+        );
+      }
+      return;
+    }
+
+    this._queue.push({ test, result });
+  }
+
+  // onEnd returns Promise — Playwright awaits this before exiting.
+  async onEnd(_result: FullResult): Promise<void> {
+    for (const { test, result } of this._queue) {
+      await this._processTest(test, result);
+    }
+  }
+
+  private async _processTest(test: TestCase, result: TestResult): Promise<void> {
     try {
-      // Skip if the test was skipped
-      if (result.status === 'skipped') return;
-
-      // Resolve spec file path by walking up the suite tree
       const specPath = getSpecFilePath(test);
-
-      // Resolve trace attachment path
       const traceAttachment = result.attachments.find(
         a => a.name === 'trace' && a.path
       );
-      if (!traceAttachment?.path) {
-        if (result.status === 'passed') {
-          console.log(
-            `pw-memex: trace not found for "${test.title}". ` +
-            `Set use: { trace: 'on' } in playwright.config to enable learning.`
-          );
-        }
-        return;
-      }
+      if (!traceAttachment?.path) return;
 
       const tracePath = traceAttachment.path;
       const { outputDir, baseUrl, networkTimingMultiplier } = this.config;
