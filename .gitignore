@@ -1,0 +1,7 @@
+node_modules/
+dist/
+.env
+*.js.map
+test-results/
+playwright-report/
+pw memex project guide.md
