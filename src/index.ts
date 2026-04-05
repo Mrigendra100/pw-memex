@@ -3,6 +3,7 @@
 import { program } from 'commander';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
+import { spawnSync } from 'child_process';
 import { parseTrace } from './parser/traceParser';
 import { buildMemory } from './memory/memoryBuilder';
 import { writeMemory, readMemory, listMemoryFiles } from './memory/memoryStore';
@@ -124,6 +125,31 @@ program
       console.log(`    anchors:  ${mem?.selectorAnchors.length || 0} selectors`);
       console.log('');
     }
+  });
+
+// ─── test command (playwright proxy) ─────────────────────────────────────────
+
+program
+  .command('test')
+  .description('Run playwright test; add --learn to force-overwrite memory baselines')
+  .option('--learn', 'Force re-learn: overwrite existing memory baselines')
+  .allowUnknownOption(true)
+  .action((_opts, _cmd) => {
+    // Collect everything after "test" from raw argv
+    const raw = process.argv.slice(3);
+    const forceLearn = raw.includes('--learn');
+    const playwrightArgs = raw.filter(a => a !== '--learn');
+
+    const env = { ...process.env };
+    if (forceLearn) env.PW_MEMEX_FORCE_LEARN = '1';
+
+    const result = spawnSync(
+      'npx',
+      ['playwright', 'test', ...playwrightArgs],
+      { stdio: 'inherit', env, shell: true },
+    );
+
+    process.exit(result.status ?? 0);
   });
 
 program.parse(process.argv);

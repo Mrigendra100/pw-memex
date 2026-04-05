@@ -4,6 +4,8 @@ export interface MemexConfig {
   screenshotDiffThreshold: number;
   networkTimingMultiplier: number;
   model: string;
+  /** Re-learn and overwrite the memory file even if a baseline already exists. */
+  forceLearn: boolean;
 }
 
 export interface TestMemory {

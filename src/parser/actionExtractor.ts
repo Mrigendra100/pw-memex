@@ -121,10 +121,46 @@ function extractSelectorFromApiName(apiName: string): string | undefined {
 
 function collectFallbackSelectors(params: Record<string, any>): string[] {
   const selectors: string[] = [];
-  if (params.selector) selectors.push(params.selector);
+  if (params.selector) {
+    selectors.push(params.selector);
+    selectors.push(...deriveSelectorVariants(params.selector));
+  }
   if (params.hasText) selectors.push(`text=${params.hasText}`);
   if (params.role) selectors.push(`role=${params.role}`);
   return [...new Set(selectors)];
+}
+
+export function deriveSelectorVariants(selector: string): string[] {
+  // Already highest-stability — no derived form adds value
+  if (selector.includes('data-testid') || selector.includes('data-test-id')) return [];
+  if (selector.includes('aria-label')) return [];
+
+  const variants: string[] = [];
+
+  // selector:has-text("Foo") → text=Foo  (scores 40 > default 35)
+  const hasTextMatch = selector.match(/:has-text\("(.*?)"\)/);
+  if (hasTextMatch) variants.push(`text=${hasTextMatch[1]}`);
+
+  // tag#id → #id, [id="id"]  (both score 70)
+  const tagIdMatch = selector.match(/^([a-zA-Z][a-zA-Z0-9]*)#([a-zA-Z][a-zA-Z0-9_-]*)$/);
+  if (tagIdMatch) {
+    variants.push(`#${tagIdMatch[2]}`);
+    variants.push(`[id="${tagIdMatch[2]}"]`);
+  }
+
+  // #id → [id="id"]  (equivalent attribute form)
+  const bareIdMatch = selector.match(/^#([a-zA-Z][a-zA-Z0-9_-]*)$/);
+  if (bareIdMatch) variants.push(`[id="${bareIdMatch[1]}"]`);
+
+  // tag[attr...] → [attr...]  (drops tag requirement so it matches any element type)
+  const tagAttrMatch = selector.match(/^([a-zA-Z][a-zA-Z0-9]*)(\[.+\])$/);
+  if (tagAttrMatch) variants.push(tagAttrMatch[2]);
+
+  // tag.class → .class  (single-class only; multi-class would need a CSS parser)
+  const tagClassMatch = selector.match(/^([a-zA-Z][a-zA-Z0-9]*)(\.[a-zA-Z][a-zA-Z0-9_-]*)$/);
+  if (tagClassMatch) variants.push(tagClassMatch[2]);
+
+  return variants;
 }
 
 function maskSensitiveValue(value?: string): string | undefined {

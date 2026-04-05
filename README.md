@@ -54,54 +54,150 @@ npm run build
 
 ## Setup
 
-1. Copy `.env.example` to `.env` and add your API key:
+### 1. Add your API key
+
+Copy `.env.example` to `.env`:
 
 ```bash
 ANTHROPIC_API_KEY=sk-ant-your-key-here
 
 # Optional overrides
 ANTHROPIC_MODEL=claude-sonnet-4-6
-MEMEX_OUTPUT_DIR=.pw-memory
 ```
 
-2. Enable trace recording in your `playwright.config.ts`:
+### 2. Add the reporter to `playwright.config.ts`
+
+The reporter hooks into your existing test run automatically — no separate commands needed.
 
 ```ts
-use: {
-  trace: 'on-first-retry', // or 'on' to always record
-}
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  reporter: [
+    ['list'],
+    ['html'],
+    ['pw-memex/reporter', {
+      outputDir: '.pw-memory',   // where .md baselines are written
+    }],
+  ],
+  use: {
+    trace: 'on',   // required — pw-memex reads these trace files
+  },
+});
 ```
 
-3. (Optional) Add a `pw-memex.config.ts` to your project root:
+> **Important:** `trace: 'on'` is required. `'on-first-retry'` will not produce traces for passing tests, so the reporter cannot learn from them.
+
+### 3. Reporter options
+
+All options are optional:
 
 ```ts
-import { MemexConfig } from 'pw-memex';
-
-const config: MemexConfig = {
-  baseUrl: 'http://localhost:3000',
-  outputDir: '.pw-memory',
-  screenshotDiffThreshold: 0.1,  // fraction of pixels allowed to differ (0–1)
-  networkTimingMultiplier: 3,    // flag if response time > baseline × this
-  model: 'claude-sonnet-4-6',
-};
-
-export default config;
+['pw-memex/reporter', {
+  outputDir: '.pw-memory',          // default: '.pw-memory'
+  baseUrl: 'http://localhost:3000', // auto-detected from playwright.config if omitted
+  screenshotDiffThreshold: 0.1,     // fraction of pixels allowed to differ (0–1)
+  networkTimingMultiplier: 3,       // flag if response time > baseline × this
+  model: 'claude-sonnet-4-6',       // Claude model to use for AI summaries
+  forceLearn: false,                // re-learn and overwrite baselines every run
+}]
 ```
 
 ---
 
 ## Usage
 
+### Automatic (via reporter)
+
+Once the reporter is configured, learning and comparison happen automatically:
+
+- **Passing test, no baseline** → reporter learns and writes `.pw-memory/<spec>/<test>.md`
+- **Passing test, baseline exists** → reporter skips (baseline is up to date)
+- **Failing test, baseline exists** → reporter compares and prints a classified failure report
+
+### Force re-learn
+
+Use this when you have fixed a selector or changed app behaviour and want to update the baseline.
+
+**Option 1 — `pw-memex test` wrapper** (recommended):
+
 ```bash
-# Learn: build a memory baseline from a passing trace
-pw-memex learn test-results/my-test/trace.zip --test "my test name" --output .pw-memory
+# Re-learns all tests in the file (overwrites existing baselines)
+npx pw-memex test tests/indihivetech.spec.ts --learn
+
+# --learn works alongside any other Playwright flags
+npx pw-memex test tests/indihivetech.spec.ts --learn --headed --project=chromium
+```
+
+**Option 2 — environment variable** (one-off, no config change):
+
+```bash
+PW_MEMEX_FORCE_LEARN=1 npx playwright test tests/indihivetech.spec.ts
+```
+
+**Option 3 — reporter config** (always re-learns every run):
+
+```ts
+['pw-memex/reporter', { outputDir: '.pw-memory', forceLearn: true }]
+```
+
+### CLI commands
+
+```bash
+# Learn: build a memory baseline from a trace file directly
+npx pw-memex learn test-results/my-test/trace.zip \
+  --test "my test name" \
+  --suite tests/my.spec.ts \
+  --output .pw-memory
 
 # Compare: classify a failure against an existing baseline
-pw-memex compare test-results/my-test/trace.zip .pw-memory/my-test-name.memory.md --error "element not found"
+npx pw-memex compare test-results/my-test/trace.zip .pw-memory/my-test.md \
+  --error "element not found"
 
 # List all saved baselines
-pw-memex list --dir .pw-memory
+npx pw-memex list --dir .pw-memory
 ```
+
+---
+
+## Memory file format
+
+Each test gets a `.memory.md` file under `.pw-memory/<spec-name>/<test-name>.md`:
+
+```markdown
+---
+test: TC01 - Search results are displayed for a query
+suite: tests/googleSearch.spec.ts
+baseline: 2026-04-06T10:00:00.000Z
+baseUrl: https://www.google.com/
+status: passed
+---
+
+## Route journey
+/
+
+## Steps
+1. **navigate**
+   url: https://www.google.com/
+2. **fill**
+   selector: `[aria-label="Search"]`
+   value: `playwright`
+
+## Selector anchors
+### Step 1 — fill (MEDIUM stability)
+- primary:   `[aria-label="Search"]`
+- fallback1: `textarea[name=q]`
+
+## Network calls
+### GET /
+- expected status: 200
+- timing p50: 312ms
+
+## AI summary
+This test navigates to Google and submits a search query ...
+```
+
+The file is human-readable, git-diffable, and safe to edit by hand. Committing it signals to reviewers that expected test behaviour changed.
 
 ---
 
@@ -109,9 +205,9 @@ pw-memex list --dir .pw-memory
 
 ```
 src/
-├── index.ts                  # CLI entry point (commander)
-├── runner/
-│   └── traceRunner.ts        # Orchestrates learn / compare flow
+├── index.ts                  # CLI entry point (learn / compare / list / test)
+├── reporter/
+│   └── playwrightReporter.ts # Playwright reporter (auto learn + compare)
 ├── parser/
 │   ├── traceParser.ts        # Unzips and reads Playwright trace archives
 │   ├── actionExtractor.ts    # Pulls actions (clicks, fills, navigations)
@@ -127,31 +223,6 @@ src/
 │   └── reporter.ts           # Formats and outputs the classification report
 └── claude/
     └── client.ts             # Anthropic SDK wrapper (single point of API calls)
-```
-
----
-
-## Memory file format
-
-Each test gets a `.memory.md` file with YAML front-matter and markdown sections:
-
-```markdown
----
-test: my-test
-created: 2026-04-05T10:00:00Z
-baseUrl: http://localhost:3000
----
-
-## Actions
-- navigate → /login
-- fill #email → user@example.com
-- click button[type=submit]
-
-## Network
-- POST /api/auth 200 (142ms)
-
-## Screenshots
-- step-1.png (hash: abc123)
 ```
 
 ---

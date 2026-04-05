@@ -83,7 +83,7 @@ function rankSelectorsByStability(selectors: string[]): string[] {
   const stabilityScore = (sel: string): number => {
     if (sel.includes('data-testid') || sel.includes('data-test-id')) return 100;
     if (sel.includes('aria-label') || sel.startsWith('role=')) return 85;
-    if (sel.match(/^#[a-zA-Z]/)) return 70;           // semantic ID
+    if (sel.match(/^#[a-zA-Z]/) || sel.includes('[id=')) return 70;  // semantic ID
     if (sel.includes('[type=') || sel.includes('[name=')) return 60;
     if (sel.includes('placeholder')) return 55;
     if (sel.startsWith('text=') || sel.startsWith('has-text=')) return 40;

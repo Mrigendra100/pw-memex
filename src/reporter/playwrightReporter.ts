@@ -18,12 +18,15 @@ export default class MemexReporter implements Reporter {
   onBegin(config: FullConfig): void {
     // Auto-detect baseUrl from playwright.config.ts if not explicitly provided
     const playwrightBaseUrl = config.projects[0]?.use?.baseURL;
+    // PW_MEMEX_FORCE_LEARN=1 env var overrides config option
+    const envForce = process.env.PW_MEMEX_FORCE_LEARN === '1';
     this.config = {
       baseUrl: this.options.baseUrl ?? playwrightBaseUrl ?? '',
       outputDir: this.options.outputDir ?? '.pw-memory',
       screenshotDiffThreshold: this.options.screenshotDiffThreshold ?? 0.1,
       networkTimingMultiplier: this.options.networkTimingMultiplier ?? 3,
       model: this.options.model ?? 'claude-sonnet-4-6',
+      forceLearn: envForce || (this.options.forceLearn ?? false),
     };
   }
 
@@ -67,9 +70,10 @@ export default class MemexReporter implements Reporter {
       const { outputDir, baseUrl, networkTimingMultiplier } = this.config;
 
       if (result.status === 'passed') {
-        // Only learn if no baseline exists yet (guard against retries)
+        const { forceLearn } = this.config;
+        // Skip if baseline already exists, unless forceLearn is set
         const existing = findMemoryFile(test.title, outputDir, specPath ?? undefined);
-        if (existing) return;
+        if (existing && !forceLearn) return;
 
         console.log(`pw-memex: learning from "${test.title}"...`);
         const parsedTrace = await parseTrace(tracePath);
