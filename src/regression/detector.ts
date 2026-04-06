@@ -38,6 +38,10 @@ export async function detectRegression(
   const timingMultiplier = config?.networkTimingMultiplier || 3;
   const diff = computeDiff(baseline, newTrace, timingMultiplier);
 
+  // Pre-check: does the error message indicate a locator couldn't find its target?
+  const locatorFailed = isLocatorFailure(failureError);
+  const failedSelectorHint = failureError ? extractFailedSelector(failureError) : null;
+
   // ── Rule-based fast paths before invoking Claude ──────────────────────────
 
   // Backend error: status code changed to 5xx
@@ -106,11 +110,28 @@ export async function detectRegression(
     };
   }
 
-  // Visual only: screenshots differ but no selectors or network issues
+  // Locator failure: element didn't appear within the timeout — the selector text/role/name
+  // likely changed in the UI. This fires before the visual check because screenshot diffs
+  // accumulate normally even when only the final assertion/wait fails.
+  // Hand off to Claude for root cause analysis and actionable fix suggestion.
+  if (locatorFailed && diff.networkStatusChanges.length === 0) {
+    const aiResult = await classifyFailure(baseline, diff, failureError);
+    // Override to BROKEN_SELECTOR if Claude returned something else —
+    // we know from the error message that a locator failed.
+    if (aiResult.failureType !== 'BROKEN_SELECTOR') {
+      aiResult.failureType = 'BROKEN_SELECTOR';
+      aiResult.confidence = Math.max(aiResult.confidence, 0.85);
+    }
+    return aiResult;
+  }
+
+  // Visual only: screenshots differ but no selectors or network issues.
+  // Guard against locator failures — those produce screenshot diffs too but are BROKEN_SELECTOR.
   const onlyVisual =
     diff.screenshotDiffs.length > 0 &&
     diff.missingSelectors.length === 0 &&
-    diff.networkStatusChanges.length === 0;
+    diff.networkStatusChanges.length === 0 &&
+    !locatorFailed;
 
   if (onlyVisual) {
     return {
@@ -194,4 +215,34 @@ function assessStability(selector: string): string {
   if (selector.includes('data-testid')) return 'HIGH';
   if (selector.startsWith('role=') || selector.includes('[type=')) return 'MEDIUM';
   return 'LOW';
+}
+
+/**
+ * Returns true when the Playwright error message indicates a locator could not
+ * find its target element — as opposed to a network error or assertion mismatch.
+ */
+function isLocatorFailure(error?: string): boolean {
+  if (!error) return false;
+  return (
+    error.includes('locator.waitFor') ||
+    error.includes('locator.click') ||
+    error.includes('locator.fill') ||
+    error.includes('locator.type') ||
+    error.includes('locator.press') ||
+    error.includes('waiting for') ||
+    error.includes('element not found') ||
+    error.includes('No element found') ||
+    error.includes('did not match any elements') ||
+    error.includes('strict mode violation')
+  );
+}
+
+/**
+ * Extracts the human-readable selector description from a Playwright timeout error.
+ * e.g. "waiting for getByRole('button', { name: 'Sign Out tempered' }) to be visible"
+ *   → "getByRole('button', { name: 'Sign Out tempered' })"
+ */
+function extractFailedSelector(error: string): string | null {
+  const match = error.match(/waiting for (.+?) to be/s);
+  return match ? match[1].trim() : null;
 }

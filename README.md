@@ -144,6 +144,11 @@ PW_MEMEX_FORCE_LEARN=1 npx playwright test tests/indihivetech.spec.ts
 ### CLI commands
 
 ```bash
+# Run tests via pw-memex (recommended — enables --learn flag)
+npx pw-memex test tests/my.spec.ts
+npx pw-memex test tests/my.spec.ts --learn              # force re-learn
+npx pw-memex test tests/my.spec.ts --learn --headed     # --learn + any Playwright flag
+
 # Learn: build a memory baseline from a trace file directly
 npx pw-memex learn test-results/my-test/trace.zip \
   --test "my test name" \
@@ -235,6 +240,12 @@ npm run dev     # ts-node src/index.ts (no build step)
 npm start       # node dist/index.js
 npm test        # playwright test tests/
 ```
+
+---
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for a full history of changes per version.
 
 ---
 

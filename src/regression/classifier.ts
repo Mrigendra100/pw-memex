@@ -8,13 +8,43 @@ export async function classifyFailure(
   errorMessage?: string
 ): Promise<DetectionResult> {
 
-  const prompt = `You are a senior QA engineer classifying a Playwright test failure.
+  // Build a concise summary of baseline selector anchors for context
+  const selectorContext = baseline.selectorAnchors
+    .slice(0, 15) // cap to avoid blowing token budget
+    .map(a => {
+      const fallbacks = a.fallbacks.length > 0
+        ? ` | fallbacks: ${a.fallbacks.join(', ')}`
+        : '';
+      return `  step ${a.stepIndex} (${a.stepType}): \`${a.primary}\` [${a.stability}]${fallbacks}`;
+    })
+    .join('\n');
+
+  // Build step summary so Claude understands the test flow
+  const stepSummary = baseline.steps
+    .slice(0, 20)
+    .map(s =>
+      `  ${s.index + 1}. ${s.type}` +
+      (s.selector ? ` → \`${s.selector}\`` : '') +
+      (s.url ? ` → ${s.url}` : '') +
+      (s.value ? ` = "${s.value}"` : '')
+    )
+    .join('\n');
+
+  const prompt = `You are a senior QA engineer classifying a Playwright test failure and suggesting a fix.
 
 ## Test
 "${baseline.meta.test}"
+Suite: ${baseline.meta.suite}
+Base URL: ${baseline.meta.baseUrl}
 
 ## What this test normally does
 ${baseline.aiSummary}
+
+## Baseline test flow
+${stepSummary}
+
+## Known selector anchors from baseline
+${selectorContext || '(none recorded)'}
 
 ## Failure error message
 ${errorMessage || 'No specific error message provided — test timed out or assertion failed silently.'}
@@ -29,9 +59,16 @@ ${errorMessage || 'No specific error message provided — test timed out or asse
 
 ## Failure categories
 - REAL_REGRESSION: actual app bug — functionality broken, data missing, flow broken
-- BROKEN_SELECTOR: element exists but selector no longer matches after a UI refactor
+- BROKEN_SELECTOR: element exists but selector no longer matches after a UI refactor or text change
 - FLAKY_NETWORK: timing or transient network issue, likely not a code bug, safe to retry
 - VISUAL_DRIFT: page looks different but core functionality still works
+
+## Instructions
+1. Classify the failure into one of the categories above.
+2. Explain the root cause in one clear sentence.
+3. If BROKEN_SELECTOR: parse the error to identify which locator failed and suggest the corrected selector based on the error context (e.g. if the error says waiting for a button named "Sign Out tempered" but the page has "Sign Out", suggest the corrected name).
+4. If REAL_REGRESSION: identify the likely broken component or endpoint.
+5. For any type: provide a concrete, actionable fix suggestion — a code snippet or selector change the developer can apply immediately.
 
 ## Your response
 Return ONLY valid JSON. No markdown, no explanation. Exactly this shape:
@@ -39,11 +76,11 @@ Return ONLY valid JSON. No markdown, no explanation. Exactly this shape:
   "failureType": "REAL_REGRESSION" | "BROKEN_SELECTOR" | "FLAKY_NETWORK" | "VISUAL_DRIFT",
   "confidence": 0.0-1.0,
   "details": "one clear sentence explaining the likely root cause",
-  "healingSuggestion": "if BROKEN_SELECTOR: the exact selector string to try instead. For all other types: null"
+  "healingSuggestion": "actionable fix: the exact selector or code change to apply. For FLAKY_NETWORK or VISUAL_DRIFT where no code fix is needed, describe the recommended action."
 }`;
 
   try {
-    const raw = await callClaude(prompt, { jsonMode: true, maxTokens: 512 });
+    const raw = await callClaude(prompt, { jsonMode: true, maxTokens: 1024 });
     const parsed = JSON.parse(raw);
 
     return {

@@ -97,7 +97,10 @@ export default class MemexReporter implements Reporter {
         if (!baseline) return;
 
         const parsedTrace = await parseTrace(tracePath);
-        const errorMsg = result.errors[0]?.message;
+        // Collect the full error context: message + stack + all errors
+        const errorMsg = result.errors
+          .map(e => [e.message, e.stack].filter(Boolean).join('\n'))
+          .join('\n---\n') || undefined;
         const detection = await detectRegression(baseline, parsedTrace, errorMsg, {
           networkTimingMultiplier,
         });

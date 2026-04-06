@@ -30,7 +30,7 @@ export function printReport(result: DetectionResult, testTitle: string): void {
   console.log(`  Details: ${result.details}`);
 
   if (result.healingSuggestion) {
-    console.log(`\n  Healing suggestion:`);
+    console.log(`\n  Fix:`);
     result.healingSuggestion.split('\n').forEach(line => {
       console.log(`    ${line}`);
     });
