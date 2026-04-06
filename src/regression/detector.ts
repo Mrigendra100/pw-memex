@@ -32,7 +32,8 @@ export async function detectRegression(
   baseline: TestMemory,
   newTrace: ParsedTrace,
   failureError?: string,
-  config?: { networkTimingMultiplier?: number }
+  config?: { networkTimingMultiplier?: number },
+  errorContext?: string
 ): Promise<DetectionResult> {
 
   const timingMultiplier = config?.networkTimingMultiplier || 3;
@@ -115,7 +116,7 @@ export async function detectRegression(
   // accumulate normally even when only the final assertion/wait fails.
   // Hand off to Claude for root cause analysis and actionable fix suggestion.
   if (locatorFailed && diff.networkStatusChanges.length === 0) {
-    const aiResult = await classifyFailure(baseline, diff, failureError);
+    const aiResult = await classifyFailure(baseline, diff, failureError, errorContext || newTrace.pageElementSummary);
     // Override to BROKEN_SELECTOR if Claude returned something else —
     // we know from the error message that a locator failed.
     if (aiResult.failureType !== 'BROKEN_SELECTOR') {
@@ -143,7 +144,7 @@ export async function detectRegression(
   }
 
   // Ambiguous: hand off to Claude for deeper analysis
-  return classifyFailure(baseline, diff, failureError);
+  return classifyFailure(baseline, diff, failureError, errorContext || newTrace.pageElementSummary);
 }
 
 function computeDiff(

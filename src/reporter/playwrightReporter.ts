@@ -1,4 +1,5 @@
 import type { Reporter, TestCase, TestResult, Suite, FullConfig, FullResult } from '@playwright/test/reporter';
+import * as fs from 'fs';
 import { MemexConfig } from '../memory/memorySchema';
 import { parseTrace } from '../parser/traceParser';
 import { buildMemory } from '../memory/memoryBuilder';
@@ -101,9 +102,22 @@ export default class MemexReporter implements Reporter {
         const errorMsg = result.errors
           .map(e => [e.message, e.stack].filter(Boolean).join('\n'))
           .join('\n---\n') || undefined;
+
+        // Read Playwright's error-context.md — contains accessibility tree,
+        // error details, and test source in a compact format
+        const errorContextAttachment = result.attachments.find(
+          a => a.name === 'error-context' && a.contentType === 'text/markdown'
+        );
+        let errorContext: string | undefined;
+        if (errorContextAttachment?.path) {
+          try { errorContext = fs.readFileSync(errorContextAttachment.path, 'utf8'); } catch {}
+        } else if (errorContextAttachment?.body) {
+          errorContext = errorContextAttachment.body.toString('utf8');
+        }
+
         const detection = await detectRegression(baseline, parsedTrace, errorMsg, {
           networkTimingMultiplier,
-        });
+        }, errorContext);
         printReport(detection, test.title);
       }
     } catch (err: any) {

@@ -5,7 +5,8 @@ import { callClaude } from '../claude/client';
 export async function classifyFailure(
   baseline: TestMemory,
   diff: RegressionDiff,
-  errorMessage?: string
+  errorMessage?: string,
+  pageContext?: string
 ): Promise<DetectionResult> {
 
   // Build a concise summary of baseline selector anchors for context
@@ -48,6 +49,11 @@ ${selectorContext || '(none recorded)'}
 
 ## Failure error message
 ${errorMessage || 'No specific error message provided — test timed out or assertion failed silently.'}
+
+## Page context at time of failure
+${pageContext || '(no page snapshot available)'}
+
+The above may contain a full Playwright error-context document (with page snapshot / accessibility tree, error details, and test source) or a compact summary of interactive page elements. Use it to identify elements that exist on the page but have different text/name/role than expected by the failing locator. For example, if the error says waiting for a button named "Sign Out tempered" but the page snapshot shows button "Sign Out", the fix is to update the locator name to "Sign Out".
 
 ## Diff vs baseline
 - Missing selectors (${diff.missingSelectors.length}): ${diff.missingSelectors.slice(0, 5).join(', ') || 'none'}
