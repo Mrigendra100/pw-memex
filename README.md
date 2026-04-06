@@ -28,7 +28,7 @@ The memory file is human-readable markdown, git-diffable, and AI-parseable. A ch
 | Requirement | Version |
 |---|---|
 | Node.js | >= 18.0.0 |
-| Playwright | >= 1.40.0 (in your test project) |
+| Playwright | >= 1.40.0 |
 | Anthropic API key | [console.anthropic.com](https://console.anthropic.com) |
 
 pw-memex reads traces produced by your existing test runner — it does not replace Playwright.
@@ -123,16 +123,16 @@ Use this when you have fixed a selector or changed app behaviour and want to upd
 
 ```bash
 # Re-learns all tests in the file (overwrites existing baselines)
-npx pw-memex test tests/indihivetech.spec.ts --learn
+npx pw-memex test tests/filename.spec.ts --learn
 
 # --learn works alongside any other Playwright flags
-npx pw-memex test tests/indihivetech.spec.ts --learn --headed --project=chromium
+npx pw-memex test tests/filename.spec.ts --learn --headed --project=chromium
 ```
 
 **Option 2 — environment variable** (one-off, no config change):
 
 ```bash
-PW_MEMEX_FORCE_LEARN=1 npx playwright test tests/indihivetech.spec.ts
+PW_MEMEX_FORCE_LEARN=1 npx playwright test tests/filename.spec.ts
 ```
 
 **Option 3 — reporter config** (always re-learns every run):
