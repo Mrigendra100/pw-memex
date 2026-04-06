@@ -69,11 +69,15 @@ export async function detectRegression(
     };
   }
 
-  // Pure selector failure: no network changes, just missing selectors
+  // Pure selector failure: no network changes, just missing selectors.
+  // Skip this fast path when we have a locator failure with page context —
+  // the Claude-powered path below can compare the failing selector against the
+  // page snapshot and suggest the exact corrected selector (e.g. "Sign Out fgf" → "Sign Out").
   const onlyBrokenSelectors =
     diff.missingSelectors.length > 0 &&
     diff.networkStatusChanges.length === 0 &&
-    diff.timingRegressions.length === 0;
+    diff.timingRegressions.length === 0 &&
+    !locatorFailed;
 
   if (onlyBrokenSelectors) {
     const healable = baseline.selectorAnchors.filter(a =>
