@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.7] - 2026-04-09
+
+### Added
+- **Playwright HTML report integration** — pw-memex classification now appears in `npx playwright show-report` alongside each failing test, not only on the CLI. Each failure gets:
+  - An **annotation chip** in the test header showing the classification, confidence, and a short description (e.g. `pw-memex: BROKEN SELECTOR (100%)`)
+  - A **markdown attachment** (`pw-memex analysis — <FAILURE_TYPE>`) with the full report — details, fix suggestion, affected endpoints, missing selectors, and network/timing changes
+  - Detection is now kicked off during `onTestEnd` (in parallel with subsequent tests running) and results are awaited in `onEnd` before mutating the test result, so the HTML reporter picks them up correctly
+  - **Reporter order**: users should list `pw-memex/reporter` **before** `['html']` in `playwright.config.ts` so the HTML reporter captures the attachments and annotations
+- `buildMarkdownReport()` and `buildAnnotationSummary()` exported from `src/regression/reporter.ts` — reused by both CLI printing and the HTML attachment path
+- **Multi-provider AI support** — `client.ts` now supports Anthropic, OpenAI, and Google Gemini. Select a provider via the `AI_PROVIDER` environment variable (`anthropic` | `openai` | `gemini`). Defaults to `anthropic` — existing setups require no changes.
+- `OPENAI_API_KEY` / `OPENAI_MODEL` (default `gpt-4o`) — used when `AI_PROVIDER=openai`
+- `GEMINI_API_KEY` / `GEMINI_MODEL` (default `gemini-1.5-pro`) — used when `AI_PROVIDER=gemini`
+- `openai` and `@google/generative-ai` declared as **optional peer dependencies** — neither is installed unless explicitly needed; a clear install hint is thrown at call time if the SDK is missing
+- All three providers honour the existing `maxTokens` and `jsonMode` options in `callClaude`
+
+### Notes
+- `ANTHROPIC_API_KEY` and `ANTHROPIC_MODEL` are fully unchanged
+- The `callClaude` function signature is unchanged — no changes required in consumer code
+
+---
+
 ## [0.1.3] - 2026-04-06
 
 ### Fixed

@@ -29,7 +29,7 @@ The memory file is human-readable markdown, git-diffable, and AI-parseable. A ch
 |---|---|
 | Node.js | >= 18.0.0 |
 | Playwright | >= 1.40.0 |
-| Anthropic API key | [console.anthropic.com](https://console.anthropic.com) |
+| AI provider API key | Anthropic, OpenAI, or Gemini (one required) |
 
 pw-memex reads traces produced by your existing test runner — it does not replace Playwright.
 
@@ -56,14 +56,37 @@ npm run build
 
 ### 1. Add your API key
 
-Copy `.env.example` to `.env`:
+Copy `.env.example` to `.env` and configure your preferred AI provider:
 
+**Anthropic (default)**
 ```bash
 ANTHROPIC_API_KEY=sk-ant-your-key-here
 
-# Optional overrides
+# Optional — defaults to claude-sonnet-4-5
 ANTHROPIC_MODEL=claude-sonnet-4-6
 ```
+
+**OpenAI**
+```bash
+AI_PROVIDER=openai
+OPENAI_API_KEY=sk-your-key-here
+
+# Optional — defaults to gpt-4o
+OPENAI_MODEL=gpt-4o
+```
+Install the SDK: `npm install openai`
+
+**Google Gemini**
+```bash
+AI_PROVIDER=gemini
+GEMINI_API_KEY=your-key-here
+
+# Optional — defaults to gemini-1.5-pro
+GEMINI_MODEL=gemini-1.5-pro
+```
+Install the SDK: `npm install @google/generative-ai`
+
+> `AI_PROVIDER` defaults to `anthropic` — existing setups require no changes.
 
 ### 2. Add the reporter to `playwright.config.ts`
 
@@ -75,10 +98,10 @@ import { defineConfig } from '@playwright/test';
 export default defineConfig({
   reporter: [
     ['list'],
-    ['html'],
     ['pw-memex/reporter', {
       outputDir: '.pw-memory',   // where .md baselines are written
     }],
+    ['html'],
   ],
   use: {
     trace: 'on',   // required — pw-memex reads these trace files
@@ -87,6 +110,17 @@ export default defineConfig({
 ```
 
 > **Important:** `trace: 'on'` is required. `'on-first-retry'` will not produce traces for passing tests, so the reporter cannot learn from them.
+>
+> **Reporter order matters:** list `pw-memex/reporter` **before** `['html']` so the pw-memex classification is picked up by the HTML reporter and shown alongside each failing test in `npx playwright show-report`.
+
+### HTML report integration
+
+When a test fails, pw-memex attaches its classification to the test result in two forms, both visible in `npx playwright show-report`:
+
+- **Annotation chip** at the top of the test (e.g. `pw-memex: BROKEN SELECTOR (100%)`) with a short description and suggested fix
+- **Markdown attachment** named `pw-memex analysis — <FAILURE_TYPE>` — the full report with details, affected endpoints, missing selectors, and network/timing changes
+
+The same report is also printed to stdout, so nothing about the CLI experience changes.
 
 ### 3. Reporter options
 
@@ -227,7 +261,7 @@ src/
 │   ├── classifier.ts         # Maps diff signals to a failure category
 │   └── reporter.ts           # Formats and outputs the classification report
 └── claude/
-    └── client.ts             # Anthropic SDK wrapper (single point of API calls)
+    └── client.ts             # AI provider wrapper — Anthropic, OpenAI, Gemini (single point of API calls)
 ```
 
 ---
