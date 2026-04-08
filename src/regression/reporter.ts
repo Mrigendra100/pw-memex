@@ -56,6 +56,83 @@ export function printReport(result: DetectionResult, testTitle: string): void {
   console.log(`${'─'.repeat(60)}\n`);
 }
 
+/**
+ * Builds a markdown version of the detection report for embedding in the
+ * Playwright HTML report as a `text/markdown` attachment.
+ */
+export function buildMarkdownReport(result: DetectionResult, testTitle: string): string {
+  const icon = ICONS[result.failureType];
+  const label = LABELS[result.failureType];
+  const pct = Math.round(result.confidence * 100);
+
+  const lines: string[] = [];
+  lines.push(`# ${icon} pw-memex — ${label} (${pct}% confidence)`);
+  lines.push('');
+  lines.push(`**Test:** ${testTitle}`);
+  lines.push('');
+  lines.push(`## Details`);
+  lines.push(result.details);
+
+  if (result.healingSuggestion) {
+    lines.push('');
+    lines.push(`## Fix`);
+    lines.push('');
+    lines.push(result.healingSuggestion);
+  }
+
+  if (result.affectedEndpoints?.length) {
+    lines.push('');
+    lines.push(`## Affected endpoints`);
+    result.affectedEndpoints.forEach(e => lines.push(`- ${e}`));
+  }
+
+  if (result.diff.missingSelectors.length > 0) {
+    lines.push('');
+    lines.push(`## Missing selectors (${result.diff.missingSelectors.length})`);
+    result.diff.missingSelectors.slice(0, 10).forEach(s => lines.push(`- \`${s}\``));
+  }
+
+  if (result.diff.networkStatusChanges.length > 0) {
+    lines.push('');
+    lines.push(`## Network status changes`);
+    result.diff.networkStatusChanges.forEach(c =>
+      lines.push(`- \`${c.endpoint}\`: ${c.was} → ${c.now}`)
+    );
+  }
+
+  if (result.diff.timingRegressions.length > 0) {
+    lines.push('');
+    lines.push(`## Timing regressions`);
+    result.diff.timingRegressions.forEach(t =>
+      lines.push(`- \`${t.endpoint}\`: ${t.baselineP95}ms → ${t.current}ms`)
+    );
+  }
+
+  if (result.diff.screenshotDiffs.length > 0) {
+    lines.push('');
+    lines.push(`## Screenshot diffs`);
+    lines.push(`${result.diff.screenshotDiffs.length} page(s) look different from the baseline.`);
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+/**
+ * Builds a one-line annotation summary for the Playwright HTML report
+ * (shown as a chip/label next to the test title).
+ */
+export function buildAnnotationSummary(result: DetectionResult): { type: string; description: string } {
+  const label = LABELS[result.failureType];
+  const pct = Math.round(result.confidence * 100);
+  const type = `pw-memex: ${label} (${pct}%)`;
+
+  let description = result.details;
+  if (result.healingSuggestion) {
+    description += `\n\nFix: ${result.healingSuggestion}`;
+  }
+  return { type, description };
+}
+
 export function writeJsonReport(
   result: DetectionResult,
   testTitle: string,
