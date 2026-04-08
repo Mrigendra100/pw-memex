@@ -1,6 +1,6 @@
 {
   "name": "pw-memex",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Turn Playwright traces into regression intelligence",
   "main": "./dist/index.js",
   "bin": {
@@ -40,8 +40,12 @@
     "@google/generative-ai": ">=0.1.0"
   },
   "peerDependenciesMeta": {
-    "openai": { "optional": true },
-    "@google/generative-ai": { "optional": true }
+    "openai": {
+      "optional": true
+    },
+    "@google/generative-ai": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.35.0",
