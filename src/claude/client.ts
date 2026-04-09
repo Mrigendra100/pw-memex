@@ -63,6 +63,25 @@ async function callAnthropic(
 
 // ─── OpenAI ───────────────────────────────────────────────────────────────────
 
+/**
+ * Newer OpenAI models (gpt-5 series, o1/o3/o4 reasoning models) reject the
+ * legacy `max_tokens` parameter and require `max_completion_tokens` instead.
+ * Legacy models (gpt-4, gpt-4o, gpt-3.5-turbo, etc.) still use `max_tokens`.
+ *
+ * Users can also force the new parameter name via `OPENAI_USE_COMPLETION_TOKENS=1`
+ * for any custom/forked model name this heuristic doesn't recognise.
+ */
+function openAIUsesCompletionTokens(model: string): boolean {
+  if (process.env.OPENAI_USE_COMPLETION_TOKENS === '1') return true;
+  const m = model.toLowerCase();
+  return (
+    m.startsWith('gpt-5') ||
+    m.startsWith('o1') ||
+    m.startsWith('o3') ||
+    m.startsWith('o4')
+  );
+}
+
 async function callOpenAI(
   prompt: string,
   options: { maxTokens?: number }
@@ -76,13 +95,20 @@ async function callOpenAI(
 
   const client = new OpenAI({ apiKey });
   const model = process.env.OPENAI_MODEL || 'gpt-4o';
+  const tokenLimit = options.maxTokens || 1024;
 
-  const response = await client.chat.completions.create({
+  // Build the request body with the correct token-limit parameter for this model.
+  const body: Record<string, unknown> = {
     model,
-    max_tokens: options.maxTokens || 1024,
     messages: [{ role: 'user', content: prompt }],
-  });
+  };
+  if (openAIUsesCompletionTokens(model)) {
+    body.max_completion_tokens = tokenLimit;
+  } else {
+    body.max_tokens = tokenLimit;
+  }
 
+  const response = await client.chat.completions.create(body as any);
   return response.choices[0]?.message?.content?.trim() || '';
 }
 

@@ -73,8 +73,16 @@ OPENAI_API_KEY=sk-your-key-here
 
 # Optional — defaults to gpt-4o
 OPENAI_MODEL=gpt-4o
+
+# Optional — force max_completion_tokens for a custom/forked model name
+# (auto-enabled for gpt-5*, o1*, o3*, o4* — only set this for unrecognised names)
+# OPENAI_USE_COMPLETION_TOKENS=1
 ```
 Install the SDK: `npm install openai`
+
+> pw-memex automatically picks the correct token-limit parameter per model:
+> `max_tokens` for legacy models (`gpt-4`, `gpt-4o`, `gpt-3.5-turbo`, …) and
+> `max_completion_tokens` for newer reasoning models (`gpt-5*`, `o1*`, `o3*`, `o4*`).
 
 **Google Gemini**
 ```bash

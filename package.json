@@ -1,6 +1,6 @@
 {
   "name": "pw-memex",
-  "version": "0.1.6",
+  "version": "0.1.8",
   "description": "Turn Playwright traces into regression intelligence",
   "main": "./dist/index.js",
   "bin": {

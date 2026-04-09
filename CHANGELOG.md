@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.8] - 2026-04-09
+
+### Added
+- **OpenAI `max_completion_tokens` support for gpt-5 / reasoning models** — the OpenAI provider now automatically detects newer models (`gpt-5*`, `o1*`, `o3*`, `o4*`) and sends `max_completion_tokens` instead of the legacy `max_tokens` parameter, which those models reject.
+- **`OPENAI_USE_COMPLETION_TOKENS=1`** env var — force-enables `max_completion_tokens` for any custom or forked OpenAI-compatible model name that the built-in prefix heuristic doesn't recognise.
+
+### Notes
+- Legacy OpenAI models (`gpt-4`, `gpt-4o`, `gpt-4-turbo`, `gpt-3.5-turbo`, etc.) continue to use `max_tokens` — no behaviour change for existing OpenAI users.
+- Anthropic and Gemini providers are untouched and still use their respective `max_tokens` / `maxOutputTokens` parameters as before.
+
+---
+
 ## [0.1.7] - 2026-04-09
 
 ### Added
